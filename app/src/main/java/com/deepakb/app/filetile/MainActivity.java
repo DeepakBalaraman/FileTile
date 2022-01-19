@@ -3,14 +3,18 @@ package com.deepakb.app.filetile;
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.content.Context;
+import android.graphics.Color;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.widget.CompoundButton;
 import android.widget.EditText;
-import android.widget.Toast;
-import static android.widget.Toast.LENGTH_LONG;
+import android.widget.Switch;
+import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -56,22 +60,46 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
        super.onCreate(savedInstanceState);
        setContentView(R.layout.activity_main);
-       Toast.makeText(this, "TestMain", LENGTH_LONG).show();
-       ftpServer = sFactory.createServer();
-        try {
-            if(isHotspotOn(this)||isWifiConnected(this)) {
-                manageServer();
+       setTitle("FTP");
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu){
+        super.onCreateOptionsMenu(menu);
+        TextView ipa=(TextView) findViewById(R.id.IPAdd);
+        ipa.setText("Turn on FTP to get the IP");
+        ipa.setTextColor(Color.GRAY);
+        getMenuInflater().inflate(R.menu.action_menu, menu);
+        MenuItem itemswitch = menu.findItem(R.id.switch_action_bar);
+        itemswitch.setActionView(R.layout.use_switch);
+        Switch ftpSwitch = (Switch) menu.findItem(R.id.switch_action_bar).getActionView().findViewById(R.id.ftp_switch);
+        ftpSwitch.setChecked(false);
+        ftpServer = sFactory.createServer();
+        ftpSwitch.setOnCheckedChangeListener((compoundButton, b) -> {
+            if(b){
+                try {
+                    if(isHotspotOn(MainActivity.this)||isWifiConnected(MainActivity.this)) {
+                        manageServer();
+                    }
+                    else{
+                        AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                        builder.setMessage("Connect to a Wifi Network or Turn on Hotspot to continue");
+                        builder.setTitle("Error");
+                        builder.setPositiveButton("Ok", ((dialogInterface, i) -> dialogInterface.dismiss()));
+                        builder.show();
+                        ftpSwitch.setChecked(false);
+                    }
+                } catch (IllegalAccessException | InvocationTargetException i) {
+                    i.printStackTrace();
+                }
+            }else{
+                ipa.setText("Turn on FTP to get the IP");
+                ipa.setTextColor(Color.GRAY);
+                ftpServer.suspend();
             }
-            else{
-                AlertDialog.Builder builder = new AlertDialog.Builder(this);
-                builder.setMessage("Connect to a Wifi Network or Turn on Hotspot to continue");
-                builder.setTitle("Error");
-                builder.setPositiveButton("Ok", ((dialogInterface, i) -> dialogInterface.dismiss()));
-                builder.show();
-            }
-        } catch (IllegalAccessException | InvocationTargetException i) {
-            i.printStackTrace();
-        }
+        });
+
+        return true;
     }
 
     @Override
@@ -101,8 +129,8 @@ public class MainActivity extends AppCompatActivity {
             userFactory.setPasswordEncryptor(new SaltedPasswordEncryptor());
             UserManager u = userFactory.createUserManager();
             BaseUser bu = new BaseUser();
-            bu.setName("Admin");
-            bu.setPassword("2212");
+            bu.setName("admin");
+            bu.setPassword("1234");
             bu.setHomeDirectory(Environment.getExternalStorageDirectory().getPath());
 
             List<Authority> lAuth = new ArrayList<>();
@@ -153,8 +181,6 @@ public class MainActivity extends AppCompatActivity {
 
             try{
                 ftpServer.start();
-                EditText ipa=(EditText)findViewById(R.id.IPAdd);
-                ipa.setText(String.format("ftp://%s:%s", ipAddress(this), lFactory.getPort()));
             } catch (FtpException e) {
                 e.printStackTrace();
             }
@@ -165,6 +191,10 @@ public class MainActivity extends AppCompatActivity {
         else {
             ftpServer.suspend();
         }
+
+        TextView ipa=(TextView)findViewById(R.id.IPAdd);
+        ipa.setText(String.format("ftp://%s:%s", ipAddress(this), lFactory.getPort()));
+        ipa.setTextColor(Color.BLACK);
     }
 
     private boolean isHotspotOn(Context context) throws IllegalAccessException, InvocationTargetException{
